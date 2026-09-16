@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+langgraph
+langchain-core
+PyPDF2
+pdfplumber
+python-dotenv
+PyJWT
+python-multipart
