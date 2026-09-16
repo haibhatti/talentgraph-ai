@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ShieldCheck, ArrowRightLeft, Activity, Briefcase, Loader2, Download } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import { Suspense } from "react";
+import { apiClient } from "@/lib/apiClient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ENTERPRISE PRINT DOCUMENT — rendered into the html2pdf target container
@@ -260,7 +261,7 @@ function DossierContent() {
       const id = searchParams.get("id");
       if (id) {
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/evaluations/${id}`, {
+          const res = await apiClient(`/api/v1/evaluations/${id}`, {
             headers: { Authorization: `Bearer ${session?.access_token || ""}` },
           });
           if (res.ok) {
@@ -320,7 +321,7 @@ function DossierContent() {
     }
     setIsOverriding(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/evaluations/${id}/override`, {
+      const res = await apiClient(`/api/v1/evaluations/${id}/override`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

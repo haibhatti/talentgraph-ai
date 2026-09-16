@@ -4,6 +4,7 @@ import { useEffect, useState, DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Briefcase, AlertTriangle, CheckCircle2, ChevronRight, Loader2, Upload, FileUp, ClipboardList, UploadCloud, FileText } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
+import { apiClient } from "@/lib/apiClient";
 
 interface CandidateApplication {
   id: number;
@@ -60,7 +61,7 @@ export default function CandidateDashboard() {
 
   const refreshApplications = async (token: string, email: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/applications/candidate${email ? `?email=${encodeURIComponent(email)}` : ''}`, {
+      const res = await apiClient(`/api/v1/applications/candidate${email ? `?email=${encodeURIComponent(email)}` : ''}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -143,7 +144,7 @@ export default function CandidateDashboard() {
       if (activeTab === 'upload' && selectedFile) {
         const form = new FormData();
         form.append("file", selectedFile);
-        const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload-resume`, {
+        const uploadRes = await apiClient("/api/v1/upload-resume", {
           method: "POST",
           body: form,
         });
@@ -155,7 +156,7 @@ export default function CandidateDashboard() {
         extractedText = uploadData.text;
       }
 
-      const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/applications`, {
+      const applyRes = await apiClient("/api/v1/applications", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -207,7 +208,7 @@ export default function CandidateDashboard() {
           setUserName(session.user.user_metadata?.full_name || "");
         }
         const [reqRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions`),
+          apiClient("/api/v1/requisitions"),
         ]);
 
         if (reqRes.ok) {

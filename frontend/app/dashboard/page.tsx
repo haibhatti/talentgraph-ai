@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { Activity, CheckCircle2, Briefcase, BarChart3 } from "lucide-react";
+import { apiClient } from "@/lib/apiClient";
 
 // ─── Exact mirror of the GET /api/v1/evaluations response shape ────────────────
 interface EvaluationRecord {
@@ -69,8 +70,8 @@ export default function DashboardOverview() {
           : {};
 
         const [evalRes, reqRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/evaluations`, { headers: authHeader }),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions`),
+          apiClient("/api/v1/evaluations", { headers: authHeader }),
+          apiClient("/api/v1/requisitions"),
         ]);
 
         if (evalRes.ok) {

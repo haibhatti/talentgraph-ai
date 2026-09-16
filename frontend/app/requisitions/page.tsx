@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, Briefcase, ChevronRight, Loader2, Edit2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { apiClient } from "@/lib/apiClient";
 
 interface Requisition {
   id: number;
@@ -50,7 +51,7 @@ export default function RequisitionsPage() {
         setCompanyName(session.user.user_metadata?.company_name || "");
         setUserEmail(session.user.email || "");
       }
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions`, {
+      const res = await apiClient("/api/v1/requisitions", {
         headers: {
           "Authorization": `Bearer ${session?.access_token || ''}`
         }
@@ -75,7 +76,7 @@ export default function RequisitionsPage() {
     setIsCreating(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions`, {
+      const res = await apiClient("/api/v1/requisitions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -110,7 +111,7 @@ export default function RequisitionsPage() {
     if (!confirm("Are you sure you want to delete this requisition?")) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions/${id}`, {
+      const res = await apiClient(`/api/v1/requisitions/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${session?.access_token || ''}`
@@ -141,7 +142,7 @@ export default function RequisitionsPage() {
     setIsEditing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions/${editingReqId}`, {
+      const res = await apiClient(`/api/v1/requisitions/${editingReqId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

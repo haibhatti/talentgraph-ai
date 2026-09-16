@@ -3,6 +3,7 @@
 import { useState, DragEvent, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UploadCloud, FileText, ClipboardList, Loader2, FileUp } from 'lucide-react';
+import { apiClient } from "@/lib/apiClient";
 
 const AGENT_STEPS = [
   "Resume Analyzer",
@@ -36,7 +37,7 @@ function EvaluateContent() {
           );
           const { data: { session } } = await supabase.auth.getSession();
           
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions`, {
+          const res = await apiClient("/api/v1/requisitions", {
              headers: { "Authorization": `Bearer ${session?.access_token || ''}` }
           });
           if (res.ok) {
@@ -66,7 +67,7 @@ function EvaluateContent() {
     formData.append("file", file);
     
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload-resume`, {
+      const res = await apiClient("/api/v1/upload-resume", {
         method: "POST",
         body: formData,
       });
@@ -140,7 +141,7 @@ function EvaluateContent() {
       );
       const { data: { session } } = await supabase.auth.getSession();
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/evaluate`, {
+      const res = await apiClient("/api/v1/evaluate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
