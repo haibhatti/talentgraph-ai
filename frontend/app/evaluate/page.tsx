@@ -36,7 +36,7 @@ function EvaluateContent() {
           );
           const { data: { session } } = await supabase.auth.getSession();
           
-          const res = await fetch(`http://127.0.0.1:8000/api/v1/requisitions`, {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions`, {
              headers: { "Authorization": `Bearer ${session?.access_token || ''}` }
           });
           if (res.ok) {
@@ -66,7 +66,7 @@ function EvaluateContent() {
     formData.append("file", file);
     
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/upload-resume", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/upload-resume`, {
         method: "POST",
         body: formData,
       });
@@ -140,7 +140,7 @@ function EvaluateContent() {
       );
       const { data: { session } } = await supabase.auth.getSession();
 
-      const res = await fetch("http://127.0.0.1:8000/api/v1/evaluate", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/evaluate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

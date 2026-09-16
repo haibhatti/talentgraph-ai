@@ -69,8 +69,8 @@ export default function DashboardOverview() {
           : {};
 
         const [evalRes, reqRes] = await Promise.all([
-          fetch("http://127.0.0.1:8000/api/v1/evaluations", { headers: authHeader }),
-          fetch("http://127.0.0.1:8000/api/v1/requisitions"),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/evaluations`, { headers: authHeader }),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions`),
         ]);
 
         if (evalRes.ok) {

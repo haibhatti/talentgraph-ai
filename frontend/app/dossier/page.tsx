@@ -260,7 +260,7 @@ function DossierContent() {
       const id = searchParams.get("id");
       if (id) {
         try {
-          const res = await fetch(`http://127.0.0.1:8000/api/v1/evaluations/${id}`, {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/evaluations/${id}`, {
             headers: { Authorization: `Bearer ${session?.access_token || ""}` },
           });
           if (res.ok) {
@@ -320,7 +320,7 @@ function DossierContent() {
     }
     setIsOverriding(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/evaluations/${id}/override`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/evaluations/${id}/override`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

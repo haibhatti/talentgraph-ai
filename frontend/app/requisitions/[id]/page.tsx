@@ -45,7 +45,7 @@ export default function RequisitionApplicantsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
       
-      const reqRes = await fetch(`http://127.0.0.1:8000/api/v1/requisitions`, {
+      const reqRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (reqRes.ok) {
@@ -54,7 +54,7 @@ export default function RequisitionApplicantsPage() {
         if (found) setRequisition(found);
       }
 
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/requisitions/${id}/applications`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/requisitions/${id}/applications`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -84,7 +84,7 @@ export default function RequisitionApplicantsPage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/applications/${appId}/evaluate`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/applications/${appId}/evaluate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
