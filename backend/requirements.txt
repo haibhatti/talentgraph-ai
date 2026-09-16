@@ -4,8 +4,10 @@ sqlalchemy
 pydantic
 langgraph
 langchain-core
+langchain-groq
 PyPDF2
 pdfplumber
 python-dotenv
 PyJWT
 python-multipart
+duckduckgo-search
