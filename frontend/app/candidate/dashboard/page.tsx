@@ -90,7 +90,7 @@ export default function CandidateDashboard() {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.name.toLowerCase().endsWith(".pdf")) {
-        alert("Please upload a PDF resume.");
+        setSubmitError("Please upload a PDF resume.");
         return;
       }
       setSelectedFile(file);
@@ -115,7 +115,7 @@ export default function CandidateDashboard() {
       if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
         setSelectedFile(file);
       } else {
-        alert("Only PDF files are supported.");
+        setSubmitError("Only PDF files are supported.");
       }
     }
   };
@@ -124,11 +124,11 @@ export default function CandidateDashboard() {
     if (!selectedReq) return;
     
     if (activeTab === 'upload' && !selectedFile) {
-      alert("Please select a PDF file to upload.");
+      setSubmitError("Please select a PDF file to upload.");
       return;
     }
     if (activeTab === 'paste' && !resumeText.trim()) {
-      alert("Please paste your resume text.");
+      setSubmitError("Please paste your resume text.");
       return;
     }
 
@@ -183,12 +183,17 @@ export default function CandidateDashboard() {
       setTimeout(() => setToastMessage(null), 3000);
       await refreshApplications(token, session?.user?.email || "");
       setShowModal(false);
+      
+      // Push to the application details page after a successful submission
+      if (applyData && applyData.id) {
+        router.push(`/candidate/applications/${applyData.id}`);
+      }
     } catch (err: any) {
       console.error(err);
       if (err?.message === "You have already applied for this position.") {
         setSubmitError(err.message);
       } else {
-        alert(err?.message || "Error submitting application");
+        setSubmitError(err?.message || "Error submitting application");
       }
     } finally {
       setIsSubmitting(false);

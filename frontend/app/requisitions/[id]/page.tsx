@@ -34,6 +34,7 @@ export default function RequisitionApplicantsPage() {
   // Stepper state
   const [showStepper, setShowStepper] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [evalError, setEvalError] = useState<string | null>(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,6 +78,7 @@ export default function RequisitionApplicantsPage() {
     setEvaluatingId(appId);
     setShowStepper(true);
     setCurrentStep(1);
+    setEvalError(null);
 
     // Fake progress for UX
     const interval = setInterval(() => {
@@ -101,13 +103,13 @@ export default function RequisitionApplicantsPage() {
         router.push(`/dossier?id=${data.evaluation_id}`);
       } else {
         clearInterval(interval);
-        alert(data.detail || "Evaluation failed.");
+        setEvalError(data.detail || "Evaluation failed.");
         setShowStepper(false);
       }
     } catch (error) {
       clearInterval(interval);
       console.error(error);
-      alert("Error triggering evaluation.");
+      setEvalError("Error triggering evaluation.");
       setShowStepper(false);
     } finally {
       setEvaluatingId(null);
@@ -131,6 +133,12 @@ export default function RequisitionApplicantsPage() {
           </p>
         </div>
       </div>
+
+      {evalError && (
+        <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg shadow-sm flex items-center gap-3">
+          <span className="font-semibold">{evalError}</span>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center h-64 items-center">

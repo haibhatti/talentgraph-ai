@@ -542,6 +542,36 @@ def get_candidate_applications(email: str = None, user: dict = Depends(get_curre
         db.close()
 
 
+@app.get("/api/v1/applications/{id}")
+def get_application(id: int, user: dict = Depends(get_current_user_id)):
+    db = SessionLocal()
+    try:
+        app_record = db.query(Application).filter(
+            Application.id == id, Application.user_id == user["user_id"]
+        ).first()
+        if not app_record:
+            raise HTTPException(status_code=404, detail="Application not found")
+        
+        return {
+            "id": app_record.id,
+            "job_requisition_id": app_record.job_requisition_id,
+            "candidate_name": app_record.candidate_name,
+            "candidate_email": app_record.candidate_email,
+            "status": app_record.status,
+            "evaluation_id": app_record.evaluation_id,
+            "resume_text": app_record.resume_text,
+            "created_at": app_record.created_at.isoformat() if app_record.created_at else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.error(f"get_application failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch application")
+    finally:
+        db.close()
+
+
 @app.post("/api/v1/applications/{id}/evaluate")
 def evaluate_application(id: int, user: dict = Depends(get_evaluate_user)):
     db = SessionLocal()
