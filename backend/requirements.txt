@@ -11,3 +11,4 @@ python-dotenv
 PyJWT
 python-multipart
 duckduckgo-search
+psycopg2-binary
