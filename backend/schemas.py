@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel, Field, model_serializer
+from typing import List, Optional, Any
 from datetime import datetime
 
 class EvaluateRequest(BaseModel):
@@ -96,3 +96,42 @@ class FinalCandidateDossier(BaseModel):
     technical_interview_pack: Optional[TechnicalScreenKit] = None
     culture_fit: Optional[CultureFitKit] = None
     behavioral_interview_pack: Optional[CultureFitKit] = None
+
+
+# ── Candidate-scoped schemas (RBAC-safe, no HR interview kits) ────────────────
+
+class CandidateEvaluationSummary(BaseModel):
+    """Masked evaluation snapshot surfaced to candidates.
+
+    Deliberately omits technical_screen, technical_interview_pack,
+    culture_fit, and behavioral_interview_pack so HR interview kits
+    are never serialised into a candidate-facing response.
+    """
+    verdict: str
+    score: float
+    # orchestrator_synthesis maps to the LangGraph orchestrator's
+    # executive_summary field — the only narrative candidates may see.
+    orchestrator_synthesis: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CandidateApplicationResponse(BaseModel):
+    """Strict serialisation contract for candidate-facing application endpoints.
+
+    Does NOT inherit from ApplicationCreate so resume_text is never
+    included. HR interview kit fields are absent by construction.
+    """
+    id: int
+    job_requisition_id: int
+    candidate_name: str
+    candidate_email: str
+    status: str
+    evaluation_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    # Populated only when status == 'Evaluated'; masked to safe fields only.
+    evaluation: Optional[CandidateEvaluationSummary] = None
+
+    class Config:
+        from_attributes = True

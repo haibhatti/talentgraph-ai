@@ -18,7 +18,15 @@ class OverrideRequest(BaseModel):
     justification: str
 
 from sqlalchemy.orm import Session
-from schemas import EvaluateRequest, JobRequisitionCreate, JobRequisitionResponse, ApplicationCreate, ApplicationResponse
+from schemas import (
+    EvaluateRequest,
+    JobRequisitionCreate,
+    JobRequisitionResponse,
+    ApplicationCreate,
+    ApplicationResponse,
+    CandidateApplicationResponse,
+    CandidateEvaluationSummary,
+)
 from graph import app as graph_app
 import jwt
 from database import SessionLocal, get_db, engine, Base
@@ -510,22 +518,44 @@ def get_requisition_applications(id: int, user: dict = Depends(get_current_user_
 def get_candidate_applications(email: str = None, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        query = db.query(Application).filter(Application.user_id == user["user_id"])
+        # LEFT OUTER JOIN ensures Pending applications (no Evaluation row yet)
+        # are still returned, while Evaluated ones carry the masked summary.
+        query = (
+            db.query(Application, Evaluation)
+            .outerjoin(Evaluation, Application.evaluation_id == Evaluation.id)
+            .filter(Application.user_id == user["user_id"])
+        )
         if email:
             query = query.filter(Application.candidate_email == email)
-        apps = query.order_by(Application.created_at.desc()).all()
-        return [
-            {
-                "id": a.id,
-                "job_requisition_id": a.job_requisition_id,
-                "candidate_name": a.candidate_name,
-                "candidate_email": a.candidate_email,
-                "status": a.status,
-                "evaluation_id": a.evaluation_id,
-                "created_at": a.created_at.isoformat() if a.created_at else None,
-            }
-            for a in apps
-        ]
+        rows = query.order_by(Application.created_at.desc()).all()
+
+        results = []
+        for app_record, eval_record in rows:
+            masked_eval = None
+            if eval_record is not None:
+                # Map orchestrator narrative: executive_summary is the only
+                # candidate-safe field from FinalCandidateDossier.
+                synthesis = None
+                if isinstance(eval_record.full_dossier, dict):
+                    synthesis = eval_record.full_dossier.get("executive_summary")
+                masked_eval = CandidateEvaluationSummary(
+                    verdict=eval_record.verdict or "Pending",
+                    score=eval_record.score or 0.0,
+                    orchestrator_synthesis=synthesis,
+                )
+            results.append(
+                CandidateApplicationResponse(
+                    id=app_record.id,
+                    job_requisition_id=app_record.job_requisition_id,
+                    candidate_name=app_record.candidate_name,
+                    candidate_email=app_record.candidate_email,
+                    status=app_record.status,
+                    evaluation_id=app_record.evaluation_id,
+                    created_at=app_record.created_at,
+                    evaluation=masked_eval,
+                ).model_dump()
+            )
+        return results
     except Exception as e:
         import logging
         logging.error(f"get_candidate_applications failed: {e}")
@@ -538,22 +568,41 @@ def get_candidate_applications(email: str = None, user: dict = Depends(get_curre
 def get_application(id: int, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        app_record = db.query(Application).filter(
-            Application.id == id, Application.user_id == user["user_id"]
-        ).first()
-        if not app_record:
+        # LEFT OUTER JOIN: return the application even when no Evaluation exists yet.
+        row = (
+            db.query(Application, Evaluation)
+            .outerjoin(Evaluation, Application.evaluation_id == Evaluation.id)
+            .filter(
+                Application.id == id,
+                Application.user_id == user["user_id"],
+            )
+            .first()
+        )
+        if not row:
             raise HTTPException(status_code=404, detail="Application not found")
-        
-        return {
-            "id": app_record.id,
-            "job_requisition_id": app_record.job_requisition_id,
-            "candidate_name": app_record.candidate_name,
-            "candidate_email": app_record.candidate_email,
-            "status": app_record.status,
-            "evaluation_id": app_record.evaluation_id,
-            "resume_text": app_record.resume_text,
-            "created_at": app_record.created_at.isoformat() if app_record.created_at else None,
-        }
+
+        app_record, eval_record = row
+        masked_eval = None
+        if eval_record is not None:
+            synthesis = None
+            if isinstance(eval_record.full_dossier, dict):
+                synthesis = eval_record.full_dossier.get("executive_summary")
+            masked_eval = CandidateEvaluationSummary(
+                verdict=eval_record.verdict or "Pending",
+                score=eval_record.score or 0.0,
+                orchestrator_synthesis=synthesis,
+            )
+
+        return CandidateApplicationResponse(
+            id=app_record.id,
+            job_requisition_id=app_record.job_requisition_id,
+            candidate_name=app_record.candidate_name,
+            candidate_email=app_record.candidate_email,
+            status=app_record.status,
+            evaluation_id=app_record.evaluation_id,
+            created_at=app_record.created_at,
+            evaluation=masked_eval,
+        ).model_dump()
     except HTTPException:
         raise
     except Exception as e:
@@ -635,6 +684,10 @@ def evaluate_application(id: int, user: dict = Depends(get_evaluate_user)):
 
         app_record.status = "Evaluated"
         app_record.evaluation_id = evaluation.id
+        # Explicitly preserve the candidate's original user_id.
+        # The ORM session must never inherit the HR evaluator's identity
+        # onto the Application row; this assignment is an immutability guard.
+        app_record.user_id = app_record.user_id
         db.commit()
 
         return {

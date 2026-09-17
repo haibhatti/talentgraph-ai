@@ -14,6 +14,13 @@ interface CandidateApplication {
   status: string;
   evaluation_id: number | null;
   created_at: string;
+  // Populated by the backend only when status === 'Evaluated'.
+  // Fields are RBAC-masked: technical_screen and culture_fit are absent.
+  evaluation?: {
+    verdict: string;
+    score: number;
+    orchestrator_synthesis: string | null;
+  } | null;
 }
 
 export default function ApplicationDetailsPage() {
@@ -156,7 +163,16 @@ export default function ApplicationDetailsPage() {
         </div>
 
         {application.status === 'Evaluated' && application.evaluation_id && (
-          <div className="mt-8 pt-6 border-t border-slate-100">
+          <div className="mt-8 pt-6 border-t border-slate-100 space-y-4">
+            {/* Render orchestrator synthesis if present; safe on null/undefined. */}
+            {application.evaluation?.orchestrator_synthesis && (
+              <div>
+                <span className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">AI Evaluation Summary</span>
+                <p className="text-sm text-slate-700 bg-slate-50 rounded-xl p-4 border border-slate-100 leading-relaxed">
+                  {application.evaluation.orchestrator_synthesis}
+                </p>
+              </div>
+            )}
             <button
               onClick={() => router.push(`/dossier?id=${application.evaluation_id}`)}
               className="py-2.5 px-6 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"

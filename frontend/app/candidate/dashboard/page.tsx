@@ -14,6 +14,13 @@ interface CandidateApplication {
   status: string;
   evaluation_id: number | null;
   created_at: string;
+  // Populated by the backend only when status === 'Evaluated'.
+  // Fields are RBAC-masked: technical_screen and culture_fit are absent.
+  evaluation?: {
+    verdict: string;
+    score: number;
+    orchestrator_synthesis: string | null;
+  } | null;
 }
 
 interface CandidateEvaluation {
@@ -375,12 +382,20 @@ export default function CandidateDashboard() {
                     </div>
                   </div>
                   {app.status === 'Evaluated' && app.evaluation_id && (
-                    <button
-                      onClick={() => router.push(`/dossier?id=${app.evaluation_id}`)}
-                      className="mt-4 w-full py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                    >
-                      <FileText className="w-4 h-4" /> View Feedback
-                    </button>
+                    <div className="mt-3 space-y-2">
+                      {/* Render orchestrator synthesis if present; never crashes on null. */}
+                      {app.evaluation?.orchestrator_synthesis && (
+                        <p className="text-xs text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-100 line-clamp-3">
+                          {app.evaluation.orchestrator_synthesis}
+                        </p>
+                      )}
+                      <button
+                        onClick={() => router.push(`/dossier?id=${app.evaluation_id}`)}
+                        className="mt-1 w-full py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                      >
+                        <FileText className="w-4 h-4" /> View Feedback
+                      </button>
+                    </div>
                   )}
                 </div>
               );
