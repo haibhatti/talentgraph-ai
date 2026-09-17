@@ -54,3 +54,4 @@ class Application(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     job_requisition = relationship("JobRequisition", back_populates="applications")
+    evaluation = relationship("Evaluation")

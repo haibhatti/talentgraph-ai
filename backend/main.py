@@ -17,7 +17,7 @@ class OverrideRequest(BaseModel):
     verdict: str
     justification: str
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from schemas import (
     EvaluateRequest,
     JobRequisitionCreate,
@@ -521,23 +521,24 @@ def get_candidate_applications(email: str = None, user: dict = Depends(get_curre
         # LEFT OUTER JOIN ensures Pending applications (no Evaluation row yet)
         # are still returned, while Evaluated ones carry the masked summary.
         query = (
-            db.query(Application, Evaluation)
-            .outerjoin(Evaluation, Application.evaluation_id == Evaluation.id)
+            db.query(Application)
+            .options(joinedload(Application.evaluation))
             .filter(Application.user_id == user["user_id"])
         )
         if email:
             query = query.filter(Application.candidate_email == email)
-        rows = query.order_by(Application.created_at.desc()).all()
+        apps = query.order_by(Application.created_at.desc()).all()
 
         results = []
-        for app_record, eval_record in rows:
+        for app_record in apps:
             masked_eval = None
+            eval_record = app_record.evaluation
             if eval_record is not None:
-                # Map orchestrator narrative: executive_summary is the only
-                # candidate-safe field from FinalCandidateDossier.
+                import json
                 synthesis = None
-                if isinstance(eval_record.full_dossier, dict):
-                    synthesis = eval_record.full_dossier.get("executive_summary")
+                dossier_data = json.loads(eval_record.full_dossier) if isinstance(eval_record.full_dossier, str) else eval_record.full_dossier
+                if isinstance(dossier_data, dict):
+                    synthesis = dossier_data.get("executive_summary", None)
                 masked_eval = CandidateEvaluationSummary(
                     verdict=eval_record.verdict or "Pending",
                     score=eval_record.score or 0.0,
@@ -568,25 +569,26 @@ def get_candidate_applications(email: str = None, user: dict = Depends(get_curre
 def get_application(id: int, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        # LEFT OUTER JOIN: return the application even when no Evaluation exists yet.
-        row = (
-            db.query(Application, Evaluation)
-            .outerjoin(Evaluation, Application.evaluation_id == Evaluation.id)
+        app_record = (
+            db.query(Application)
+            .options(joinedload(Application.evaluation))
             .filter(
                 Application.id == id,
                 Application.user_id == user["user_id"],
             )
             .first()
         )
-        if not row:
+        if not app_record:
             raise HTTPException(status_code=404, detail="Application not found")
 
-        app_record, eval_record = row
         masked_eval = None
+        eval_record = app_record.evaluation
         if eval_record is not None:
+            import json
             synthesis = None
-            if isinstance(eval_record.full_dossier, dict):
-                synthesis = eval_record.full_dossier.get("executive_summary")
+            dossier_data = json.loads(eval_record.full_dossier) if isinstance(eval_record.full_dossier, str) else eval_record.full_dossier
+            if isinstance(dossier_data, dict):
+                synthesis = dossier_data.get("executive_summary", None)
             masked_eval = CandidateEvaluationSummary(
                 verdict=eval_record.verdict or "Pending",
                 score=eval_record.score or 0.0,
