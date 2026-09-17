@@ -28,42 +28,6 @@ app = FastAPI(title="TalentGraph AI Backend")
 
 Base.metadata.create_all(bind=engine)
 
-def _seed_requisitions_if_empty():
-    db = SessionLocal()
-    try:
-        if db.query(JobRequisition).count() == 0:
-            db.add_all(
-                [
-                    JobRequisition(
-                        user_id="seed",
-                        title="Senior Backend Engineer",
-                        description="Experienced backend developer with Python and distributed systems knowledge.",
-                        required_skills=["Python", "FastAPI", "PostgreSQL", "Docker"],
-                        nice_to_have_skills=["Kubernetes", "GraphQL"],
-                    ),
-                    JobRequisition(
-                        user_id="seed",
-                        title="Frontend Developer",
-                        description="React expert to build a high-quality hiring UI.",
-                        required_skills=["React", "TypeScript", "Next.js", "TailwindCSS"],
-                        nice_to_have_skills=["Redux", "Framer Motion"],
-                    ),
-                    JobRequisition(
-                        user_id="seed",
-                        title="Technical Product Manager",
-                        description="PM with technical chops to partner with the TalentGraph AI team.",
-                        required_skills=["Product Strategy", "Agile", "API Design"],
-                        nice_to_have_skills=["SQL", "Figma"],
-                    ),
-                ]
-            )
-            db.commit()
-    except Exception:
-        db.rollback()
-    finally:
-        db.close()
-
-_seed_requisitions_if_empty()
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
@@ -381,7 +345,7 @@ async def upload_resume(file: UploadFile = File(...)):
 
 @app.get("/api/v1/health")
 def health():
-    return {"status": "ok", "service": "TalentGraph AI", "db": "sqlite-local"}
+    return {"status": "ok", "service": "TalentGraph AI", "db": "postgresql"}
 
 
 # ── Evaluate ──────────────────────────────────────────────────────────────────

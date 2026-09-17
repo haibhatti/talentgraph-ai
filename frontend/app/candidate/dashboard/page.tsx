@@ -64,7 +64,8 @@ export default function CandidateDashboard() {
       const res = await apiClient(`/api/v1/applications/candidate${email ? `?email=${encodeURIComponent(email)}` : ''}`, {
         headers: {
           Authorization: `Bearer ${token}`
-        }
+        },
+        cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
