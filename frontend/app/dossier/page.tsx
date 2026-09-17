@@ -259,7 +259,10 @@ function DossierContent() {
       setSessionToken(session?.access_token || "");
 
       const id = searchParams.get("id");
-      if (id) {
+      const raw = sessionStorage.getItem("dossierData");
+      if (raw) {
+        setDossier(JSON.parse(raw));
+      } else if (id) {
         try {
           const res = await apiClient(`/api/v1/evaluations/${id}`, {
             headers: { Authorization: `Bearer ${session?.access_token || ""}` },
@@ -272,15 +275,32 @@ function DossierContent() {
               score: data.score ?? data.full_dossier?.score,
               verdict: data.verdict || data.full_dossier?.verdict,
             });
+          } else if (session?.user?.user_metadata?.role === 'candidate') {
+            const email = session?.user?.email || "";
+            const appRes = await apiClient(`/api/v1/applications/candidate${email ? `?email=${encodeURIComponent(email)}` : ''}`, {
+              headers: { Authorization: `Bearer ${session?.access_token || ""}` },
+            });
+            if (appRes.ok) {
+              const data = await appRes.json();
+              const apps = Array.isArray(data) ? data : [];
+              const app = apps.find((a: any) => a.evaluation_id?.toString() === id);
+              if (app && app.evaluation) {
+                setDossier({
+                  ...app.evaluation,
+                  candidate_name: app.candidate_name,
+                  candidate_email: app.candidate_email,
+                  executive_summary: app.evaluation.orchestrator_synthesis
+                });
+              }
+            } else {
+              console.error("Failed to fetch candidate applications:", appRes.status);
+            }
           } else {
             console.error("Failed to fetch evaluation:", res.status);
           }
         } catch (error) {
           console.error("Error fetching evaluation:", error);
         }
-      } else {
-        const raw = sessionStorage.getItem("dossierData");
-        if (raw) setDossier(JSON.parse(raw));
       }
       setIsLoading(false);
     };
@@ -362,9 +382,11 @@ function DossierContent() {
       <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
         <div className="text-center">
           <p className="text-[#64748b] mb-4">No active session found.</p>
-          <Link href="/evaluate" className="text-white bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-full font-bold transition-colors">
-            Start New Screening
-          </Link>
+          {userRole !== 'candidate' && (
+            <Link href="/evaluate" className="text-white bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-full font-bold transition-colors">
+              Start New Screening
+            </Link>
+          )}
         </div>
       </div>
     );

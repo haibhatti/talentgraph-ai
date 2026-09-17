@@ -390,7 +390,16 @@ export default function CandidateDashboard() {
                         </p>
                       )}
                       <button
-                        onClick={() => router.push(`/dossier?id=${app.evaluation_id}`)}
+                        onClick={() => {
+                          const dossierObject = {
+                            ...app.evaluation,
+                            candidate_name: app.candidate_name,
+                            candidate_email: app.candidate_email,
+                            executive_summary: app.evaluation?.orchestrator_synthesis
+                          };
+                          sessionStorage.setItem("dossierData", JSON.stringify(dossierObject));
+                          router.push(`/dossier?id=${app.evaluation_id}`);
+                        }}
                         className="mt-1 w-full py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
                       >
                         <FileText className="w-4 h-4" /> View Feedback
