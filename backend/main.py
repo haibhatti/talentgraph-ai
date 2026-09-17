@@ -445,7 +445,28 @@ def create_application(request: ApplicationCreate, user: dict = Depends(get_curr
         except sqlalchemy.exc.IntegrityError:
             db.rollback()
             raise HTTPException(status_code=400, detail="You already have submitted your application for this requisition.")
-        return {"status": "success", "id": app_record.id}
+        # Eagerly load the linked JobRequisition so the serialized response
+        # is fully self-contained — no follow-up GET is needed by the client.
+        job_req = db.query(JobRequisition).filter(
+            JobRequisition.id == app_record.job_requisition_id
+        ).first()
+
+        return {
+            "status": "success",
+            "application": {
+                "id": app_record.id,
+                "job_requisition_id": app_record.job_requisition_id,
+                "candidate_name": app_record.candidate_name,
+                "candidate_email": app_record.candidate_email,
+                "status": app_record.status,
+                "evaluation_id": app_record.evaluation_id,
+                "created_at": app_record.created_at.isoformat() if app_record.created_at else None,
+            },
+            "job_requisition": {
+                "id": job_req.id,
+                "title": job_req.title,
+            } if job_req else None,
+        }
     except HTTPException:
         raise
     except Exception as e:

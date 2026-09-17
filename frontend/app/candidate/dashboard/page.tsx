@@ -206,17 +206,17 @@ export default function CandidateDashboard() {
         throw errorObj;
       }
 
-      // Extract application_id defensively from both possible shapes:
-      //   { id: number } (current backend)  OR  { application_id: number } (future-proof)
-      const applicationId: number | undefined = applyData?.id ?? applyData?.application_id;
+      // Extract the server-authoritative application object returned by the POST.
+      // This is a synchronous state update — no secondary network request, no race.
+      const newApplication: CandidateApplication = applyData.application;
+      setApplications(prev => [newApplication, ...prev]);
 
       setToastMessage(`Application submitted for ${selectedReq.title}`);
       setTimeout(() => setToastMessage(null), 3000);
-      await refreshApplications(token, session?.user?.email || "");
       setShowModal(false);
 
-      // Stay on the dashboard; the list is already refreshed above via
-      // refreshApplications(), so no redirect is needed.
+      // Silently revalidate the Next.js router cache in the background
+      // without blocking the optimistic DOM update above.
       router.refresh();
     } catch (err: any) {
       console.error("[handleModalSubmit] error:", err);
