@@ -125,7 +125,7 @@ def job_fit_node(state: AgentState):
     entities_to_verify = parsed.frameworks[:3]
     if not entities_to_verify:
         entities_to_verify = parsed.core_skills[:3]
-    forensic_result = verify_digital_footprint(entities_to_verify)
+    forensic_result = verify_digital_footprint(parsed.candidate_name, entities_to_verify)
     
     messages = [
         SystemMessage(content=JOB_FIT_PROMPT),
@@ -144,7 +144,7 @@ def job_fit_node(state: AgentState):
     result.matched_skills = tool_output["matched_skills"]
     result.missing_skills = tool_output["missing_skills"]
     result.forensic_confidence_score = forensic_result.get("forensic_confidence_score", 50.0)
-    result.forensic_verification_note = forensic_result.get("verification_note", "")
+    result.forensic_verification_note = forensic_result.get("forensic_verification_note", forensic_result.get("verification_note", ""))
     
     state["job_fit"] = result
     state["steps"].append(f"Job Fit Agent: Tool executed. Score: {result.score}%. Forensic Confidence: {result.forensic_confidence_score}%.")

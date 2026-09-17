@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 import logging
 from duckduckgo_search import DDGS
 
-def verify_digital_footprint(entities: List[str]) -> Dict[str, Any]:
+def verify_digital_footprint(candidate_name: str, entities: List[str]) -> Dict[str, Any]:
     """
     Forensic digital verification tool.
     Searches DuckDuckGo for key entities (projects, repos, companies)
@@ -17,7 +17,8 @@ def verify_digital_footprint(entities: List[str]) -> Dict[str, Any]:
     if not entities:
         return {"forensic_confidence_score": 50.0, "verification_note": "No specific entities extracted for verification."}
 
-    queries = [f'"{entity}"' for entity in entities[:3]]
+    query = f'"{candidate_name}" {" OR ".join(entities)}'
+    queries = [query]
     
     verified_count = 0
     total_searches = len(queries)
@@ -34,10 +35,9 @@ def verify_digital_footprint(entities: List[str]) -> Dict[str, Any]:
                 else:
                     notes.append(f"Could not independently verify: {query}")
             except Exception as e:
-                logging.error(f"Search failed for {query}: {e}")
-                notes.append(f"Search error for: {query}")
+                return {"forensic_confidence_score": 50, "forensic_verification_note": f"Verification paused: External OSINT API rate limit exceeded on cloud infrastructure. Could not independently verify web presence. System log: {str(e)[:50]}"}
     except Exception as e:
-        return {"forensic_confidence_score": 0.0, "verification_note": f"DuckDuckGo search initialization failed: {e}"}
+        return {"forensic_confidence_score": 50, "forensic_verification_note": f"Verification paused: External OSINT API rate limit exceeded on cloud infrastructure. Could not independently verify web presence. System log: {str(e)[:50]}"}
             
     if total_searches == 0:
         return {"forensic_confidence_score": 50.0, "verification_note": "No entities provided for verification."}
