@@ -59,8 +59,17 @@ export default function CandidateDashboard() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const refreshApplications = async (token: string, email: string) => {
+  const refreshApplications = async (callerToken?: string, callerEmail?: string) => {
     try {
+      // Always resolve a fresh session internally so the JWT is never stale or
+      // empty — even when called from the initial mount before the Supabase
+      // client has fully hydrated the session into the caller's scope.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token || callerToken || "";
+      const email = session?.user?.email || callerEmail || "";
+
       // Enforce dynamic fetching: bypass Next.js cache and always include
       // the Authorization header so scoped SQLAlchemy queries return the
       // correct user's applications immediately after submission.

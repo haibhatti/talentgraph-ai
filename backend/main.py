@@ -547,11 +547,16 @@ def get_application(id: int, user: dict = Depends(get_current_user_id)):
 def evaluate_application(id: int, user: dict = Depends(get_evaluate_user)):
     db = SessionLocal()
     try:
-        app_record = db.query(Application).filter(Application.id == id, Application.user_id == user["user_id"]).first()
+        app_record = db.query(Application).join(JobRequisition).filter(
+            Application.id == id,
+            JobRequisition.user_id == user["user_id"]
+        ).first()
         if not app_record:
             raise HTTPException(status_code=404, detail="Application not found")
-        
-        req_record = db.query(JobRequisition).filter(JobRequisition.id == app_record.job_requisition_id, JobRequisition.user_id == user["user_id"]).first()
+
+        req_record = db.query(JobRequisition).filter(
+            JobRequisition.id == app_record.job_requisition_id
+        ).first()
         if not req_record:
             raise HTTPException(status_code=404, detail="Job Requisition not found")
 
