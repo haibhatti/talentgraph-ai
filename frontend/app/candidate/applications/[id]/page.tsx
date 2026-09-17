@@ -36,17 +36,54 @@ export default function ApplicationDetailsPage() {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token || "";
 
-        const res = await apiClient(`/api/v1/applications/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        // Retry up to 3 times with exponential back-off (150 ms, 300 ms).
+        // This absorbs the propagation window between the backend's HTTP 201
+        // response and the record becoming visible through the Supabase
+        // Session Pooler, preventing the false-positive "Application not found"
+        // error state that fires immediately after a successful submission.
+        const MAX_ATTEMPTS = 3;
+        const BACKOFF_MS = [0, 150, 300];
+        let lastStatus = 0;
 
-        if (res.ok) {
-          const data = await res.json();
-          setApplication(data);
-        } else {
-          setError("Application not found or you don't have access.");
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          if (BACKOFF_MS[attempt] > 0) {
+            await new Promise((resolve) => setTimeout(resolve, BACKOFF_MS[attempt]));
+          }
+
+          const res = await apiClient(`/api/v1/applications/${id}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Cache-Control": "no-store, no-cache, must-revalidate",
+            },
+            cache: "no-store",
+          });
+
+          lastStatus = res.status;
+
+          if (res.ok) {
+            const data = await res.json();
+            setApplication(data);
+            return; // success — exit the retry loop
+          }
+
+          // 404 may be transient on the first attempt after creation.
+          // 401/403 are permanent auth failures — break immediately.
+          if (res.status === 401 || res.status === 403) {
+            setError("You don't have permission to view this application.");
+            return;
+          }
+
+          // On the last attempt, surface the error to the user.
+          if (attempt === MAX_ATTEMPTS - 1) {
+            setError(
+              lastStatus === 404
+                ? "Application not found or you don't have access."
+                : "An error occurred while fetching the application."
+            );
+          }
         }
       } catch (err) {
+        console.error("[ApplicationDetailsPage] fetch error:", err);
         setError("Network error fetching application.");
       } finally {
         setIsLoading(false);

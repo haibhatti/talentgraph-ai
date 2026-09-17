@@ -61,18 +61,25 @@ export default function CandidateDashboard() {
 
   const refreshApplications = async (token: string, email: string) => {
     try {
-      const res = await apiClient(`/api/v1/applications/candidate${email ? `?email=${encodeURIComponent(email)}` : ''}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        cache: 'no-store'
-      });
+      // Enforce dynamic fetching: bypass Next.js cache and always include
+      // the Authorization header so scoped SQLAlchemy queries return the
+      // correct user's applications immediately after submission.
+      const res = await apiClient(
+        `/api/v1/applications/candidate${email ? `?email=${encodeURIComponent(email)}` : ''}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+          cache: "no-store",
+        }
+      );
       if (res.ok) {
         const data = await res.json();
         setApplications(Array.isArray(data) ? data : []);
       }
     } catch (e) {
-      console.error(e);
+      console.error("[refreshApplications] fetch error:", e);
     }
   };
 
@@ -162,6 +169,7 @@ export default function CandidateDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-store",
         },
         body: JSON.stringify({
           job_requisition_id: selectedReq.id,
@@ -170,8 +178,15 @@ export default function CandidateDashboard() {
           resume_text: extractedText,
         }),
       });
+
+      // Accept both 200 OK and 201 Created as successful responses.
+      // The backend returns HTTP 201 on creation; treating only res.ok
+      // (which includes both) is correct — but we guard explicitly so
+      // any future refactor of the status code never re-introduces the bug.
+      const isSuccess = applyRes.status === 200 || applyRes.status === 201;
       const applyData = await applyRes.json().catch(() => ({}));
-      if (!applyRes.ok) {
+
+      if (!isSuccess) {
         if (applyRes.status === 409) {
           setToastMessage("You have already applied for this position.");
           return;
@@ -182,20 +197,31 @@ export default function CandidateDashboard() {
         throw errorObj;
       }
 
+      // Extract application_id defensively from both possible shapes:
+      //   { id: number } (current backend)  OR  { application_id: number } (future-proof)
+      const applicationId: number | undefined = applyData?.id ?? applyData?.application_id;
+
       setToastMessage(`Application submitted for ${selectedReq.title}`);
       setTimeout(() => setToastMessage(null), 3000);
       await refreshApplications(token, session?.user?.email || "");
       setShowModal(false);
-      
-      // Push to the application details page after a successful submission
-      if (applyData && applyData.id) {
-        router.refresh();
-        router.push(`/candidate/applications/${applyData.id}`);
+
+      if (applicationId) {
+        // Introduce a short propagation delay (300 ms) so the Supabase
+        // Session Pooler has time to commit and replicate the row before
+        // the detail page issues its GET /api/v1/applications/:id fetch.
+        // Without this, a race condition causes a transient 404 that
+        // incorrectly triggers the "Application not found" error state.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        router.push(`/candidate/applications/${applicationId}`);
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("[handleModalSubmit] error:", err);
       const apiDetail = err.response?.data?.detail || err?.message;
-      if (apiDetail === "You have already applied for this position." || apiDetail === "You already have submitted your application for this requisition.") {
+      if (
+        apiDetail === "You have already applied for this position." ||
+        apiDetail === "You already have submitted your application for this requisition."
+      ) {
         setSubmitError(apiDetail);
       } else {
         setSubmitError(apiDetail || "Error submitting application");
