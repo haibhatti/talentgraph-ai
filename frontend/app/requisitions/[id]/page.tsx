@@ -78,9 +78,21 @@ export default function RequisitionApplicantsPage() {
 
   const handleEvaluate = async (appId: number) => {
     setEvaluatingId(appId);
+    setEvalError(null);
+
+    // Guard: ensure a valid session exists before hitting the backend.
+    // An empty/anonymous Bearer causes the DB ownership filter to return
+    // no rows and FastAPI responds with 404, not 401.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setEvalError("Your session has expired. Please sign in again.");
+      setEvaluatingId(null);
+      router.push("/auth/signin");
+      return;
+    }
+
     setShowStepper(true);
     setCurrentStep(1);
-    setEvalError(null);
 
     // Fake progress for UX
     const interval = setInterval(() => {
@@ -88,15 +100,17 @@ export default function RequisitionApplicantsPage() {
     }, 2000);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await apiClient(`/api/v1/applications/${appId}/evaluate`, {
+      // appId is already typed as number; cast explicitly to guarantee
+      // the URL template produces a valid integer path segment, never "undefined".
+      const numericId = Number(appId);
+      const res = await apiClient(`/api/v1/applications/${numericId}/evaluate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session?.access_token || ""}`
-        }
+          "Authorization": `Bearer ${session.access_token}`,
+        },
       });
-      
+
       const data = await res.json();
       if (res.ok && data.evaluation_id) {
         clearInterval(interval);

@@ -353,7 +353,7 @@ export default function CandidateDashboard() {
             </div>
             <h3 className="text-lg font-bold text-slate-800 mb-2">No Applications Found</h3>
             <p className="text-slate-500 max-w-md mx-auto">
-              Please click 'Apply Now' on a requisition above to submit an application. Tracking applicant state from the candidate side requires full authentication which is stubbed here.
+              Apply to an open role above to track your application status and view AI evaluation feedback here.
             </p>
           </div>
         ) : (
