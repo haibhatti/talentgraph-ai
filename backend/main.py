@@ -515,47 +515,42 @@ def get_requisition_applications(id: int, user: dict = Depends(get_current_user_
 
 
 @app.get("/api/v1/applications/candidate")
-def get_candidate_applications(email: str = None, user: dict = Depends(get_current_user_id)):
+def get_candidate_applications(user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        # LEFT OUTER JOIN ensures Pending applications (no Evaluation row yet)
-        # are still returned, while Evaluated ones carry the masked summary.
-        query = (
+        apps = (
             db.query(Application)
             .options(joinedload(Application.evaluation))
             .filter(Application.user_id == user["user_id"])
+            .order_by(Application.created_at.desc())
+            .all()
         )
-        if email:
-            query = query.filter(Application.candidate_email == email)
-        apps = query.order_by(Application.created_at.desc()).all()
 
         results = []
+        import json
         for app_record in apps:
             masked_eval = None
-            eval_record = app_record.evaluation
-            if eval_record is not None:
-                import json
+            if app_record.evaluation is not None:
+                eval_record = app_record.evaluation
                 synthesis = None
                 dossier_data = json.loads(eval_record.full_dossier) if isinstance(eval_record.full_dossier, str) else eval_record.full_dossier
                 if isinstance(dossier_data, dict):
                     synthesis = dossier_data.get("executive_summary", None)
-                masked_eval = CandidateEvaluationSummary(
-                    verdict=eval_record.verdict or "Pending",
-                    score=eval_record.score or 0.0,
-                    orchestrator_synthesis=synthesis,
-                )
-            results.append(
-                CandidateApplicationResponse(
-                    id=app_record.id,
-                    job_requisition_id=app_record.job_requisition_id,
-                    candidate_name=app_record.candidate_name,
-                    candidate_email=app_record.candidate_email,
-                    status=app_record.status,
-                    evaluation_id=app_record.evaluation_id,
-                    created_at=app_record.created_at,
-                    evaluation=masked_eval,
-                ).model_dump()
-            )
+                masked_eval = {
+                    "verdict": eval_record.verdict or "Pending",
+                    "score": eval_record.score or 0.0,
+                    "orchestrator_synthesis": synthesis,
+                }
+            results.append({
+                "id": app_record.id,
+                "job_requisition_id": app_record.job_requisition_id,
+                "candidate_name": app_record.candidate_name,
+                "candidate_email": app_record.candidate_email,
+                "status": app_record.status,
+                "evaluation_id": app_record.evaluation_id,
+                "created_at": app_record.created_at.isoformat() if app_record.created_at else None,
+                "evaluation": masked_eval,
+            })
         return results
     except Exception as e:
         import logging
