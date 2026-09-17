@@ -71,7 +71,7 @@ export default function DashboardOverview() {
 
         const [evalRes, reqRes] = await Promise.all([
           apiClient("/api/v1/evaluations", { headers: authHeader }),
-          apiClient("/api/v1/requisitions"),
+          apiClient("/api/v1/requisitions/me", { headers: authHeader }),
         ]);
 
         if (evalRes.ok) {

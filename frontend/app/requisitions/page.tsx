@@ -51,7 +51,7 @@ export default function RequisitionsPage() {
         setCompanyName(session.user.user_metadata?.company_name || "");
         setUserEmail(session.user.email || "");
       }
-      const res = await apiClient("/api/v1/requisitions", {
+      const res = await apiClient("/api/v1/requisitions/me", {
         headers: {
           "Authorization": `Bearer ${session?.access_token || ''}`
         }

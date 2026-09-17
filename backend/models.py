@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, JSON, DateTime, ForeignKey, Text
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
@@ -12,6 +13,9 @@ class JobRequisition(Base):
     required_skills = Column(JSON, default=list)
     nice_to_have_skills = Column(JSON, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    evaluations = relationship("Evaluation", back_populates="job_requisition", cascade="all, delete-orphan")
+    applications = relationship("Application", back_populates="job_requisition", cascade="all, delete-orphan")
 
 class Evaluation(Base):
     __tablename__ = "evaluations"
@@ -34,6 +38,8 @@ class Evaluation(Base):
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    job_requisition = relationship("JobRequisition", back_populates="evaluations")
+
 class Application(Base):
     __tablename__ = "applications"
     
@@ -46,3 +52,5 @@ class Application(Base):
     status = Column(String, default="Pending")
     evaluation_id = Column(Integer, ForeignKey("evaluations.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    job_requisition = relationship("JobRequisition", back_populates="applications")
