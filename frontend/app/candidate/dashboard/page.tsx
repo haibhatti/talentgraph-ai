@@ -215,15 +215,9 @@ export default function CandidateDashboard() {
       await refreshApplications(token, session?.user?.email || "");
       setShowModal(false);
 
-      if (applicationId) {
-        // Introduce a short propagation delay (300 ms) so the Supabase
-        // Session Pooler has time to commit and replicate the row before
-        // the detail page issues its GET /api/v1/applications/:id fetch.
-        // Without this, a race condition causes a transient 404 that
-        // incorrectly triggers the "Application not found" error state.
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        router.push(`/candidate/applications/${applicationId}`);
-      }
+      // Stay on the dashboard; the list is already refreshed above via
+      // refreshApplications(), so no redirect is needed.
+      router.refresh();
     } catch (err: any) {
       console.error("[handleModalSubmit] error:", err);
       const apiDetail = err.response?.data?.detail || err?.message;
