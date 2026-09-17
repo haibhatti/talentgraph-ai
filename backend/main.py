@@ -195,11 +195,10 @@ def update_requisition(id: int, requisition: dict, user: dict = Depends(get_curr
 
 
 @app.get("/api/v1/requisitions", response_model=list[JobRequisitionResponse])
-def get_requisitions(db: Session = Depends(get_db), user: dict = Depends(get_current_user_id)):
+def get_requisitions(db: Session = Depends(get_db)):
     try:
         return (
             db.query(JobRequisition)
-            .filter(JobRequisition.user_id == user["user_id"])
             .order_by(JobRequisition.created_at.desc())
             .all()
         )
@@ -207,14 +206,14 @@ def get_requisitions(db: Session = Depends(get_db), user: dict = Depends(get_cur
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/v1/requisitions/open", response_model=list[JobRequisitionResponse])
-def get_open_requisitions(user: dict = Depends(get_current_user_id)):
+@app.get("/api/v1/requisitions/me", response_model=list[JobRequisitionResponse])
+def get_my_requisitions(user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
         return db.query(JobRequisition).filter(JobRequisition.user_id == user["user_id"]).order_by(JobRequisition.created_at.desc()).all()
     except Exception as e:
         import logging
-        logging.error(f"get_open_requisitions error: {e}")
+        logging.error(f"get_my_requisitions error: {e}")
         return []
     finally:
         db.close()
@@ -229,7 +228,9 @@ def get_evaluations(
 ):
     db = SessionLocal()
     try:
-        query = db.query(Evaluation).filter(Evaluation.user_id == user["user_id"])
+        query = db.query(Evaluation).join(
+            JobRequisition, Evaluation.job_requisition_id == JobRequisition.id
+        ).filter(JobRequisition.user_id == user["user_id"])
         if job_requisition_id:
             query = query.filter(Evaluation.job_requisition_id == job_requisition_id)
         evals = query.order_by(Evaluation.created_at.desc()).all()
@@ -284,7 +285,9 @@ def get_candidate_evaluations(user: dict = Depends(get_current_user_id)):
 def get_evaluation(id: int, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        e = db.query(Evaluation).filter(Evaluation.id == id, Evaluation.user_id == user["user_id"]).first()
+        e = db.query(Evaluation).join(
+            JobRequisition, Evaluation.job_requisition_id == JobRequisition.id
+        ).filter(Evaluation.id == id, JobRequisition.user_id == user["user_id"]).first()
         if not e:
             raise HTTPException(status_code=404, detail="Evaluation not found")
         return {
@@ -306,7 +309,9 @@ def get_evaluation(id: int, user: dict = Depends(get_current_user_id)):
 def override_evaluation(id: int, request: OverrideRequest, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        e = db.query(Evaluation).filter(Evaluation.id == id, Evaluation.user_id == user["user_id"]).first()
+        e = db.query(Evaluation).join(
+            JobRequisition, Evaluation.job_requisition_id == JobRequisition.id
+        ).filter(Evaluation.id == id, JobRequisition.user_id == user["user_id"]).first()
         if not e:
             raise HTTPException(status_code=404, detail="Evaluation not found")
         e.verdict = request.verdict
@@ -484,7 +489,11 @@ def create_application(request: ApplicationCreate, user: dict = Depends(get_curr
 def get_requisition_applications(id: int, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        apps = db.query(Application).filter(Application.job_requisition_id == id, Application.user_id == user["user_id"]).order_by(Application.created_at.desc()).all()
+        apps = db.query(Application).join(
+            JobRequisition, Application.job_requisition_id == JobRequisition.id
+        ).filter(
+            JobRequisition.id == id, JobRequisition.user_id == user["user_id"]
+        ).order_by(Application.created_at.desc()).all()
         return [
             {
                 "id": a.id,
