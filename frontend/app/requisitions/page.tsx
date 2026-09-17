@@ -54,7 +54,8 @@ export default function RequisitionsPage() {
       const res = await apiClient("/api/v1/requisitions/me", {
         headers: {
           "Authorization": `Bearer ${session?.access_token || ''}`
-        }
+        },
+        cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();

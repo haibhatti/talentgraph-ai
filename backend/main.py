@@ -8,6 +8,7 @@ if str(BACKEND_DIR) not in sys.path:
 from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import sqlalchemy.exc
 
 load_dotenv(BACKEND_DIR / ".env")
 
@@ -474,9 +475,15 @@ def create_application(request: ApplicationCreate, user: dict = Depends(get_curr
             status="Pending"
         )
         db.add(app_record)
-        db.commit()
-        db.refresh(app_record)
+        try:
+            db.commit()
+            db.refresh(app_record)
+        except sqlalchemy.exc.IntegrityError:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="You already have submitted your application for this requisition.")
         return {"status": "success", "id": app_record.id}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         import logging

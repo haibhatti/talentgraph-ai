@@ -27,6 +27,7 @@ export default function ApplicationDetailsPage() {
   useEffect(() => {
     const fetchApplication = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const supabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -176,7 +176,9 @@ export default function CandidateDashboard() {
           return;
         }
         const detail = applyData?.detail ?? "Failed to submit application";
-        throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+        const errorObj = new Error(typeof detail === "string" ? detail : JSON.stringify(detail)) as any;
+        errorObj.response = { data: { detail } };
+        throw errorObj;
       }
 
       setToastMessage(`Application submitted for ${selectedReq.title}`);
@@ -186,14 +188,16 @@ export default function CandidateDashboard() {
       
       // Push to the application details page after a successful submission
       if (applyData && applyData.id) {
+        router.refresh();
         router.push(`/candidate/applications/${applyData.id}`);
       }
     } catch (err: any) {
       console.error(err);
-      if (err?.message === "You have already applied for this position.") {
-        setSubmitError(err.message);
+      const apiDetail = err.response?.data?.detail || err?.message;
+      if (apiDetail === "You have already applied for this position." || apiDetail === "You already have submitted your application for this requisition.") {
+        setSubmitError(apiDetail);
       } else {
-        setSubmitError(err?.message || "Error submitting application");
+        setSubmitError(apiDetail || "Error submitting application");
       }
     } finally {
       setIsSubmitting(false);
@@ -213,7 +217,7 @@ export default function CandidateDashboard() {
           setUserName(session.user.user_metadata?.full_name || "");
         }
         const [reqRes] = await Promise.all([
-          apiClient("/api/v1/requisitions"),
+          apiClient("/api/v1/requisitions", { cache: "no-store" }),
         ]);
 
         if (reqRes.ok) {

@@ -48,7 +48,8 @@ export default function RequisitionApplicantsPage() {
       const token = session?.access_token || "";
       
       const reqRes = await apiClient("/api/v1/requisitions", {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: { "Authorization": `Bearer ${token}` },
+        cache: 'no-store'
       });
       if (reqRes.ok) {
         const reqs = await reqRes.json();
@@ -57,7 +58,8 @@ export default function RequisitionApplicantsPage() {
       }
 
       const res = await apiClient(`/api/v1/requisitions/${id}/applications`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: { "Authorization": `Bearer ${token}` },
+        cache: 'no-store'
       });
       if (res.ok) {
         setApplications(await res.json());
