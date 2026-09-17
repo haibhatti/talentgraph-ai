@@ -153,7 +153,7 @@ async def create_requisition(
 def delete_requisition(id: int, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        req = db.query(JobRequisition).filter(JobRequisition.id == id).first()
+        req = db.query(JobRequisition).filter(JobRequisition.id == id, JobRequisition.user_id == user["user_id"]).first()
         if not req:
             raise HTTPException(status_code=404, detail="Requisition not found")
         db.delete(req)
@@ -172,7 +172,7 @@ def delete_requisition(id: int, user: dict = Depends(get_current_user_id)):
 def update_requisition(id: int, requisition: dict, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        req = db.query(JobRequisition).filter(JobRequisition.id == id).first()
+        req = db.query(JobRequisition).filter(JobRequisition.id == id, JobRequisition.user_id == user["user_id"]).first()
         if not req:
             raise HTTPException(status_code=404, detail="Requisition not found")
         if "title" in requisition:
@@ -195,10 +195,11 @@ def update_requisition(id: int, requisition: dict, user: dict = Depends(get_curr
 
 
 @app.get("/api/v1/requisitions", response_model=list[JobRequisitionResponse])
-def get_requisitions(db: Session = Depends(get_db)):
+def get_requisitions(db: Session = Depends(get_db), user: dict = Depends(get_current_user_id)):
     try:
         return (
             db.query(JobRequisition)
+            .filter(JobRequisition.user_id == user["user_id"])
             .order_by(JobRequisition.created_at.desc())
             .all()
         )
@@ -207,10 +208,10 @@ def get_requisitions(db: Session = Depends(get_db)):
 
 
 @app.get("/api/v1/requisitions/open", response_model=list[JobRequisitionResponse])
-def get_open_requisitions():
+def get_open_requisitions(user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        return db.query(JobRequisition).order_by(JobRequisition.created_at.desc()).all()
+        return db.query(JobRequisition).filter(JobRequisition.user_id == user["user_id"]).order_by(JobRequisition.created_at.desc()).all()
     except Exception as e:
         import logging
         logging.error(f"get_open_requisitions error: {e}")
@@ -228,7 +229,7 @@ def get_evaluations(
 ):
     db = SessionLocal()
     try:
-        query = db.query(Evaluation)
+        query = db.query(Evaluation).filter(Evaluation.user_id == user["user_id"])
         if job_requisition_id:
             query = query.filter(Evaluation.job_requisition_id == job_requisition_id)
         evals = query.order_by(Evaluation.created_at.desc()).all()
@@ -283,7 +284,7 @@ def get_candidate_evaluations(user: dict = Depends(get_current_user_id)):
 def get_evaluation(id: int, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        e = db.query(Evaluation).filter(Evaluation.id == id).first()
+        e = db.query(Evaluation).filter(Evaluation.id == id, Evaluation.user_id == user["user_id"]).first()
         if not e:
             raise HTTPException(status_code=404, detail="Evaluation not found")
         return {
@@ -305,7 +306,7 @@ def get_evaluation(id: int, user: dict = Depends(get_current_user_id)):
 def override_evaluation(id: int, request: OverrideRequest, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        e = db.query(Evaluation).filter(Evaluation.id == id).first()
+        e = db.query(Evaluation).filter(Evaluation.id == id, Evaluation.user_id == user["user_id"]).first()
         if not e:
             raise HTTPException(status_code=404, detail="Evaluation not found")
         e.verdict = request.verdict
@@ -448,10 +449,11 @@ def evaluate(request: EvaluateRequest, user: dict = Depends(get_evaluate_user)):
 # ── Applications ──────────────────────────────────────────────────────────────
 
 @app.post("/api/v1/applications", status_code=status.HTTP_201_CREATED)
-def create_application(request: ApplicationCreate):
+def create_application(request: ApplicationCreate, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
         existing = db.query(Application).filter_by(
+            user_id=user["user_id"],
             job_requisition_id=request.job_requisition_id, 
             candidate_email=request.candidate_email
         ).first()
@@ -459,6 +461,7 @@ def create_application(request: ApplicationCreate):
             raise HTTPException(status_code=409, detail="An application with this email already exists for this position.")
 
         app_record = Application(
+            user_id=user["user_id"],
             job_requisition_id=request.job_requisition_id,
             candidate_name=request.candidate_name,
             candidate_email=request.candidate_email,
@@ -481,7 +484,7 @@ def create_application(request: ApplicationCreate):
 def get_requisition_applications(id: int, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        apps = db.query(Application).filter(Application.job_requisition_id == id).order_by(Application.created_at.desc()).all()
+        apps = db.query(Application).filter(Application.job_requisition_id == id, Application.user_id == user["user_id"]).order_by(Application.created_at.desc()).all()
         return [
             {
                 "id": a.id,
@@ -506,7 +509,7 @@ def get_requisition_applications(id: int, user: dict = Depends(get_current_user_
 def get_candidate_applications(email: str = None, user: dict = Depends(get_current_user_id)):
     db = SessionLocal()
     try:
-        query = db.query(Application)
+        query = db.query(Application).filter(Application.user_id == user["user_id"])
         if email:
             query = query.filter(Application.candidate_email == email)
         apps = query.order_by(Application.created_at.desc()).all()
@@ -534,11 +537,11 @@ def get_candidate_applications(email: str = None, user: dict = Depends(get_curre
 def evaluate_application(id: int, user: dict = Depends(get_evaluate_user)):
     db = SessionLocal()
     try:
-        app_record = db.query(Application).filter(Application.id == id).first()
+        app_record = db.query(Application).filter(Application.id == id, Application.user_id == user["user_id"]).first()
         if not app_record:
             raise HTTPException(status_code=404, detail="Application not found")
         
-        req_record = db.query(JobRequisition).filter(JobRequisition.id == app_record.job_requisition_id).first()
+        req_record = db.query(JobRequisition).filter(JobRequisition.id == app_record.job_requisition_id, JobRequisition.user_id == user["user_id"]).first()
         if not req_record:
             raise HTTPException(status_code=404, detail="Job Requisition not found")
 

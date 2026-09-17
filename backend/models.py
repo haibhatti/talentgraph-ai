@@ -38,6 +38,7 @@ class Application(Base):
     __tablename__ = "applications"
     
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=False)
     job_requisition_id = Column(Integer, ForeignKey("job_requisitions.id"), nullable=False)
     candidate_name = Column(String, nullable=False)
     candidate_email = Column(String, nullable=False)
